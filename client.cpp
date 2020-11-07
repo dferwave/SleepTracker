@@ -12,59 +12,41 @@
 
 using namespace std;
 
-struct message
+struct messageToServer
 {
-	char ipAddr[16];     //4 Octets (At Most: 3 characters each) + 3 '.' + '\0' = 16 characters total
-	char subnetMask[16];   //Same For the Subnet Mask (Max of 16 Characters)
+    int x;
+	char string[256];
+    //etc...
 };
-struct ipAddrOctets
+struct messageFromServer
 {
-    u_int8_t ipAddr = 0, subnetMask = 0;
-    u_int8_t networkAddr = 0, broadcastAddr = 0; //, minHostAddrOctet, maxHostAddrOctet;
-};
-struct ipAddrValues
-{
-    struct ipAddrOctets octets[4];
-    u_int8_t minHostAddrOctet = 0, maxHostAddrOctet = 0;    //Only Last Octets Change (NetworkAddr+1,  BroadcastAddr-1)
-    int hostNum = 0;                                        //2^(SubnetMask_0Bits)-2
+    int y;
+	char string[256];
+    //etc...
 };
 struct message_socket
 {
-    struct message m;
+    struct messageToServer msgToS;
     int sockfd, n;
-    struct ipAddrValues calc;   //Calculated Values returned from the Server
+    struct messageFromServer msgFromS;
 };
 
 void *calcValues_server (void *msg_server_void_ptr)
 {
     struct message_socket *msg_server_ptr = (struct message_socket *)msg_server_void_ptr;
     //printf("<In calcValues_server...\tsockfd = %d\n\t\tipAddr: ", msg_server_ptr->sockfd);   //DEBUG
-    msg_server_ptr->n = write(msg_server_ptr->sockfd, &msg_server_ptr->m, sizeof(struct message)); //Send Message (Input) to Server
+    msg_server_ptr->n = write(msg_server_ptr->sockfd, &msg_server_ptr->msgToS, sizeof(struct messageToServer)); //Send Message (Input) to Server
     //cout << msg_server_ptr->m.ipAddr << "\tsubnetMask: " << msg_server_ptr->m.subnetMask << endl << "\t\t\tn = " << msg_server_ptr->n << ">" << endl; //DEBUG
     if(msg_server_ptr->n < 0) {
         //printf("<sockfd: %d\t>", msg_server_ptr->sockfd); //DEBUG
         perror("ERROR writing to socket");
         exit(0);
     }
-    msg_server_ptr->n = read(msg_server_ptr->sockfd, &msg_server_ptr->calc, sizeof(struct ipAddrValues));  //Receive Calculation from Server
+    msg_server_ptr->n = read(msg_server_ptr->sockfd, &msg_server_ptr->msgFromS, sizeof(struct messageFromServer));  //Receive Message from Server
     if(msg_server_ptr->n < 0) {
         perror("ERROR reading from socket");
         exit(0);
     }
-    /*DEBUG
-    printf("IP Address: %d.%d.%d.%d\n", msg_server_ptr->calc.octets[0].ipAddr, msg_server_ptr->calc.octets[1].ipAddr,
-        msg_server_ptr->calc.octets[2].ipAddr, msg_server_ptr->calc.octets[3].ipAddr);
-    printf("Subnet: %d.%d.%d.%d\n", msg_server_ptr->calc.octets[0].subnetMask, msg_server_ptr->calc.octets[1].subnetMask,
-        msg_server_ptr->calc.octets[2].subnetMask, msg_server_ptr->calc.octets[3].subnetMask);
-    printf("Network: %d.%d.%d.%d\n", msg_server_ptr->calc.octets[0].networkAddr, msg_server_ptr->calc.octets[1].networkAddr,
-        msg_server_ptr->calc.octets[2].networkAddr, msg_server_ptr->calc.octets[3].networkAddr);
-    printf("Broadcast: %d.%d.%d.%d\n", msg_server_ptr->calc.octets[0].broadcastAddr, msg_server_ptr->calc.octets[1].broadcastAddr,
-        msg_server_ptr->calc.octets[2].broadcastAddr, msg_server_ptr->calc.octets[3].broadcastAddr);
-    printf("HostMin: %d.%d.%d.%d\n", msg_server_ptr->calc.octets[0].networkAddr, msg_server_ptr->calc.octets[1].networkAddr,
-        msg_server_ptr->calc.octets[2].networkAddr, msg_server_ptr->calc.minHostAddrOctet);
-    printf("HostMax: %d.%d.%d.%d\n", msg_server_ptr->calc.octets[0].broadcastAddr, msg_server_ptr->calc.octets[1].broadcastAddr,
-        msg_server_ptr->calc.octets[2].broadcastAddr, msg_server_ptr->calc.maxHostAddrOctet);
-    printf("# Hosts: %d\n", msg_server_ptr->calc.hostNum);*/
     close(msg_server_ptr->sockfd);
     return NULL;
 };
@@ -94,17 +76,7 @@ int main(int argc, char *argv[]) //argc = argument count, argv = values of the a
       that transforms the portno into a network datatype [int is not always the same for all computers])
     */
     
-    /*Put Input into Message that will be Sent to Server*/
-    
-    //bzero(buffer, 256);
-    string input;
-    vector<string> v;
-    int totalAddrGiven = 0; //Number of IP Addresses Given (Host IP Addresses + Subnet Masks)
-    while(cin >> input)
-    {
-        v.push_back(input);
-        totalAddrGiven++;
-    }
+    /*Put Input into Message that will be Sent to Server:*/
     /*printf("Enter Message (IP Address): ");
     cin >> input;
     strcpy(msg.ipAddr, input.c_str());
@@ -112,25 +84,24 @@ int main(int argc, char *argv[]) //argc = argument count, argv = values of the a
     cin >> input;
     strcpy(msg.subnetMask, input.c_str());
     cout << input << endl;*/
-
-    const int inputLines = totalAddrGiven/2;    //Each Input Line: IP Address + Subnet Mask
-    //struct ipAddrValues values[inputLines];     //Calculated Values
+    string input;
+    vector<string> v;
+    int totalGiven = 0; //Number of IP Addresses Given (Host IP Addresses + Subnet Masks)
+    while(cin >> input)
+    {
+        v.push_back(input);
+        totalGiven++;
+    }
+    const int inputLines = totalGiven;
     struct message_socket msgs_server[inputLines];
     pthread_t tid[inputLines];
 
     for(int i = 0, j = 0; i < inputLines; i++)
     {
-        struct message msg;
-        bzero(msg.ipAddr, sizeof(msg.ipAddr));
-        bzero(msg.subnetMask, sizeof(msg.subnetMask));
-        strcpy(msg.ipAddr, v.operator[](j++).c_str());
-        strcpy(msg.subnetMask, v.operator[](j++).c_str());
-        //printf("Message [%d]:\t", i);    //DEBUG
-        //cout << "ipAddr: " << v.operator[](j-2) << "\tsubnetMask: " << v.operator[](j-1) << "\t";   //DEBUG
-        //struct message_socket msg_server;
-        msgs_server[i].m = msg;
-        //msg_server.sockfd = sockfd;
-        //msg_server.calc = values[i];
+        struct messageToServer msg;
+        //printf("Message [%d]:\t", i ...);    //DEBUG
+        msgs_server[i].msgToS = msg;
+        //msg_server.etc = ;
         msgs_server[i].sockfd = socket(AF_INET, SOCK_STREAM, 0); //empty socket
         /* Parameters: (Family/Internet (INET) Protocols,
                     Socket Type (SOCK_STREAM),
@@ -146,64 +117,14 @@ int main(int argc, char *argv[]) //argc = argument count, argv = values of the a
         }
         //printf("sockfd: %d\n", msgs_server[i].sockfd);  //DEBUG
 
-        /*int n = write(msg_server.sockfd, &msg, sizeof(struct message));
-        cout << "\t\tn = " << n << endl;*/
         if(pthread_create(&tid[i], NULL, calcValues_server, &msgs_server[i]))
         {
-            fprintf(stderr, "Error: pthread_create\n");
+            fprintf(stderr, "Error creating thread\n");
             return 1;
         }
-        //values[i] = msgs_server[i].calc;
-        //close(sockfd);
     }
-
     for(int i = 0; i < inputLines; i++)
         pthread_join(tid[i], NULL);
-
-    /*n = write(sockfd, &msg, sizeof(struct message)); //Send Message (Input) to Server
-    if(n < 0) {
-        perror("ERROR writing to socket");
-        exit(0);
-    }*/
     
-    /*struct ipAddrValues msg2;
-    n = read(sockfd, &msg2, sizeof(struct ipAddrValues));  //Receive Calculation from Server
-    if(n < 0) {
-        perror("ERROR writing to socket");
-        exit(0);
-    }*/
-    //Print Results:
-    /*printf("IP Address: %d.%d.%d.%d\n", msg2.octets[0].ipAddr, msg2.octets[1].ipAddr,
-        msg2.octets[2].ipAddr, msg2.octets[3].ipAddr);
-    printf("Subnet: %d.%d.%d.%d\n", msg2.octets[0].subnetMask, msg2.octets[1].subnetMask,
-        msg2.octets[2].subnetMask, msg2.octets[3].subnetMask);
-    printf("Network: %d.%d.%d.%d\n", msg2.octets[0].networkAddr, msg2.octets[1].networkAddr,
-        msg2.octets[2].networkAddr, msg2.octets[3].networkAddr);
-    printf("Broadcast: %d.%d.%d.%d\n", msg2.octets[0].broadcastAddr, msg2.octets[1].broadcastAddr,
-        msg2.octets[2].broadcastAddr, msg2.octets[3].broadcastAddr);
-    printf("HostMin: %d.%d.%d.%d\n", msg2.octets[0].networkAddr, msg2.octets[1].networkAddr,
-        msg2.octets[2].networkAddr, msg2.minHostAddrOctet);
-    printf("HostMax: %d.%d.%d.%d\n", msg2.octets[0].broadcastAddr, msg2.octets[1].broadcastAddr,
-        msg2.octets[2].broadcastAddr, msg2.maxHostAddrOctet);
-    printf("# Hosts: %d\n", msg2.hostNum);*/
-
-    for(int i = 0; i < inputLines; i++)
-    {
-        printf("IP Address: %d.%d.%d.%d\n", msgs_server[i].calc.octets[0].ipAddr, msgs_server[i].calc.octets[1].ipAddr,
-            msgs_server[i].calc.octets[2].ipAddr, msgs_server[i].calc.octets[3].ipAddr);
-        printf("Subnet: %d.%d.%d.%d\n", msgs_server[i].calc.octets[0].subnetMask, msgs_server[i].calc.octets[1].subnetMask,
-            msgs_server[i].calc.octets[2].subnetMask, msgs_server[i].calc.octets[3].subnetMask);
-        printf("Network: %d.%d.%d.%d\n", msgs_server[i].calc.octets[0].networkAddr, msgs_server[i].calc.octets[1].networkAddr,
-            msgs_server[i].calc.octets[2].networkAddr, msgs_server[i].calc.octets[3].networkAddr);
-        printf("Broadcast: %d.%d.%d.%d\n", msgs_server[i].calc.octets[0].broadcastAddr, msgs_server[i].calc.octets[1].broadcastAddr,
-            msgs_server[i].calc.octets[2].broadcastAddr, msgs_server[i].calc.octets[3].broadcastAddr);
-        printf("HostMin: %d.%d.%d.%d\n", msgs_server[i].calc.octets[0].networkAddr, msgs_server[i].calc.octets[1].networkAddr,
-            msgs_server[i].calc.octets[2].networkAddr, msgs_server[i].calc.minHostAddrOctet);
-        printf("HostMax: %d.%d.%d.%d\n", msgs_server[i].calc.octets[0].broadcastAddr, msgs_server[i].calc.octets[1].broadcastAddr,
-            msgs_server[i].calc.octets[2].broadcastAddr, msgs_server[i].calc.maxHostAddrOctet);
-        printf("# Hosts: %d\n", msgs_server[i].calc.hostNum);
-        if(i < inputLines-1)
-            cout << endl;
-    }
     return 0;
 }
