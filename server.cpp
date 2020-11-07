@@ -47,6 +47,7 @@ void *calcValues(void* values_void_ptr)
 
 int main(int argc, char *argv[])
 {
+    /*DO NOT CHANGE (START)*/
     signal(SIGCHLD, fireman);
     int sockfd, newsockfd, portno, clilen, n;
     struct sockaddr_in serv_addr, cli_addr;
@@ -84,19 +85,25 @@ int main(int argc, char *argv[])
                 perror("ERROR on accept");
                 exit(1);
             }
-            //bzero(buffer, 256);
+            /*DO NOT CHANGE (END)*/
+
             struct messageToServer msgFromC;
             n = read(newsockfd, &msgFromC, sizeof(struct messageToServer));
+            /*DO NOT CHANGE (START)*/
             if(n < 0) {
                 perror("ERROR reading from socket");
                 exit(1);
             }
+            /*DO NOT CHANGE (END)*/
+
             struct messageFromServer msgToC;
+            
             /*START OF CALCULATION*/
-        
             calcValues(&msgToC);
+            /*END OF CALCULATION*/
             
             n = write(newsockfd, &msgToC, sizeof(struct messageFromServer));
+            /*DO NOT CHANGE (START)*/
             if(n < 0) {
                 perror("ERROR writing to socket");
                 exit(1);
@@ -109,3 +116,4 @@ int main(int argc, char *argv[])
     close(sockfd);
     return 0;
 }
+/*DO NOT CHANGE (END)*/
