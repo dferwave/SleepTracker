@@ -34,9 +34,9 @@ struct message_socket
 void *calcValues_server (void *msg_server_void_ptr)
 {
     struct message_socket *msg_server_ptr = (struct message_socket *)msg_server_void_ptr;
-    //printf("<In calcValues_server...\tsockfd = %d\n\t\tipAddr: ", msg_server_ptr->sockfd);   //DEBUG
+    //printf("<In calcValues_server...\tsockfd = %d\n", msg_server_ptr->sockfd);   //DEBUG
     msg_server_ptr->n = write(msg_server_ptr->sockfd, &msg_server_ptr->msgToS, sizeof(struct messageToServer)); //Send Message (Input) to Server
-    //cout << msg_server_ptr->m.ipAddr << "\tsubnetMask: " << msg_server_ptr->m.subnetMask << endl << "\t\t\tn = " << msg_server_ptr->n << ">" << endl; //DEBUG
+    //cout << "\tetc: " << msg_server_ptr->etc << endl; //DEBUG
     if(msg_server_ptr->n < 0) {
         //printf("<sockfd: %d\t>", msg_server_ptr->sockfd); //DEBUG
         perror("ERROR writing to socket");
@@ -53,6 +53,7 @@ void *calcValues_server (void *msg_server_void_ptr)
 
 int main(int argc, char *argv[]) //argc = argument count, argv = values of the arguments/argument vector (argv[0] = main)
 {
+    /*DO NOT CHANGE (START)*/
     int portno; //sockfd, n
     struct sockaddr_in serv_addr;   //in = connects via internet
     struct hostent *server;         //hostent = host entity
@@ -75,19 +76,23 @@ int main(int argc, char *argv[]) //argc = argument count, argv = values of the a
     /*set port of serv_addr to htons (a family of functions,
       that transforms the portno into a network datatype [int is not always the same for all computers])
     */
+    /*DO NOT CHANGE (END)*/
     
     /*Put Input into Message that will be Sent to Server:*/
-    /*printf("Enter Message (IP Address): ");
-    cin >> input;
-    strcpy(msg.ipAddr, input.c_str());
-    //printf("Enter Message (Subnet Mask): ");
-    cin >> input;
-    strcpy(msg.subnetMask, input.c_str());
-    cout << input << endl;*/
     string input;
     vector<string> v;
-    int totalGiven = 0; //Number of IP Addresses Given (Host IP Addresses + Subnet Masks)
-    while(cin >> input)
+    int totalGiven = 0; //Amount of Input Given
+    /*//TEST/DEBUG:
+    printf("Enter Message (...): ");
+    cin >> input;
+    strcpy(msg.string, input.c_str());
+    //cout << input << endl;
+    printf("Enter Message (...): ");
+    cin >> input;
+    strcpy(msg.string, input.c_str());
+    //cout << input << endl;*/
+    cout << "Hello, please enter an integer: "; //TEST
+    while(cin >> input) //Will stop when it reaches the End of File or Press Ctrl+D
     {
         v.push_back(input);
         totalGiven++;
@@ -96,12 +101,12 @@ int main(int argc, char *argv[]) //argc = argument count, argv = values of the a
     struct message_socket msgs_server[inputLines];
     pthread_t tid[inputLines];
 
-    for(int i = 0, j = 0; i < inputLines; i++)
+    for(int i = 0; i < inputLines; i++)
     {
         struct messageToServer msg;
         //printf("Message [%d]:\t", i ...);    //DEBUG
         msgs_server[i].msgToS = msg;
-        //msg_server.etc = ;
+        msg.x = stoi(v.operator[](i));  //stoi = convert given string to integer
         msgs_server[i].sockfd = socket(AF_INET, SOCK_STREAM, 0); //empty socket
         /* Parameters: (Family/Internet (INET) Protocols,
                     Socket Type (SOCK_STREAM),
